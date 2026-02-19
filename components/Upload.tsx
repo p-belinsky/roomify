@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from 'react'
+import React, {useCallback, useEffect, useRef, useState} from 'react'
 import {useOutletContext} from "react-router";
 import {CheckCircle2, ImageIcon, UploadIcon} from "lucide-react";
 import {PROGRESS_INTERVAL_MS, PROGRESS_STEP, REDIRECT_DELAY_MS} from "../lib/constants";
@@ -11,27 +11,58 @@ const Upload = ({ onComplete }: UploadProps) => {
     const [file, setFile] = useState<File | null>(null);
     const [isDragging, setIsDragging] = useState(false);
     const [progress, setProgress] = useState(0);
+    const [base64Data, setBase64Data] = useState<string | null>(null);
+
+    const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const { isSignedIn } = useOutletContext<AuthContext>();
+
+    const cleanup = useCallback(() => {
+        if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+            progressIntervalRef.current = null;
+        }
+        if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+            timeoutRef.current = null;
+        }
+    }, []);
+
+    useEffect(() => {
+        return cleanup;
+    }, [cleanup]);
+
+    useEffect(() => {
+        if (progress === 100 && base64Data) {
+            cleanup();
+            timeoutRef.current = setTimeout(() => {
+                if (onComplete) {
+                    onComplete(base64Data);
+                }
+            }, REDIRECT_DELAY_MS);
+        }
+    }, [progress, base64Data, onComplete, cleanup]);
 
     const processFile = useCallback((file: File) => {
         if (!isSignedIn) return;
         setFile(file);
         setProgress(0);
+        setBase64Data(null);
+        cleanup();
 
         const reader = new FileReader();
+        reader.onerror = () => {
+            setFile(null)
+            setProgress(0);
+        }
         reader.onload = (e) => {
-            const base64Data = e.target?.result as string;
+            const data = e.target?.result as string;
+            setBase64Data(data);
 
-            const interval = setInterval(() => {
+            progressIntervalRef.current = setInterval(() => {
                 setProgress((prev) => {
                     if (prev >= 100) {
-                        clearInterval(interval);
-                        setTimeout(() => {
-                            if (onComplete) {
-                                onComplete(base64Data);
-                            }
-                        }, REDIRECT_DELAY_MS);
                         return 100;
                     }
                     return Math.min(prev + PROGRESS_STEP, 100);
@@ -39,7 +70,7 @@ const Upload = ({ onComplete }: UploadProps) => {
             }, PROGRESS_INTERVAL_MS);
         };
         reader.readAsDataURL(file);
-    }, [isSignedIn, onComplete]);
+    }, [isSignedIn, cleanup]);
 
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
@@ -58,9 +89,11 @@ const Upload = ({ onComplete }: UploadProps) => {
         if (!isSignedIn) return;
 
         const droppedFile = e.dataTransfer.files[0];
-        if (droppedFile && droppedFile.type.startsWith('image/')) {
+        const ALLOWED = ['image/jpeg', 'image/png'];
+        if (droppedFile && ALLOWED.includes(droppedFile.type)) {
             processFile(droppedFile);
         }
+
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -9,7 +9,7 @@ import {useNavigate} from "react-router";
 export function meta({}: Route.MetaArgs) {
   return [
     { title: "Roomify" },
-    { name: "an AI-first design environment that helps you visualize, render, and ship architectural projects faster and ever", content: "Welcome to Roomify!" },
+    { name: "description", content: "Welcome to Roomify! An AI-first design environment that helps you visualize, render, and ship architectural projects faster and ever" },
   ];
 }
 
