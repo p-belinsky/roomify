@@ -1,17 +1,27 @@
 import type { Route } from "./+types/home";
 import Navbar from "../../components/Navbar";
+import Upload from "../../components/Upload";
 import {ArrowRight, ArrowUpRight, Clock, Layers} from "lucide-react";
 import Button from "../../components/ui/Button";
+import {useNavigate} from "react-router";
 
 
 export function meta({}: Route.MetaArgs) {
   return [
-    { title: "New React Router App" },
-    { name: "description", content: "Welcome to React Router!" },
+    { title: "Roomify" },
+    { name: "description", content: "Welcome to Roomify! An AI-first design environment that helps you visualize, render, and ship architectural projects faster and ever" },
   ];
 }
 
 export default function Home() {
+  const navigate = useNavigate();
+
+  const handleUploadComplete = (base64Data: string) => {
+    const newId = Date.now().toString();
+    navigate(`/visualizer/${newId}`);
+
+    return true
+  }
   return (
   <div className='home'>
     <Navbar/>
@@ -53,7 +63,7 @@ export default function Home() {
               <p>Supports JPG, PNG, formats up to 10MB</p>
             </div>
 
-            <p>Upload images</p>
+            <Upload onComplete={handleUploadComplete}/>
           </div>
         </div>
     </section>
